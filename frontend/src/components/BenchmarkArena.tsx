@@ -366,11 +366,10 @@ export function BenchmarkArena() {
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
           <div>
-            <span className="font-bold">Cảnh báo Batch N = 100:</span> Chạy 100 mẫu gồm 12 ảnh scan (
-            <code className="font-semibold">RapidOCR</code> CPU) và 100 lượt gọi{" "}
-            <code className="font-semibold">gemini-3.8-flash</code> mất khoảng{" "}
-            <span className="font-bold">4–8 phút</span>, tiêu tốn ~100K input tokens/track và dễ chạm giới hạn RAM/timeout trên Render Free Tier. Khuyến nghị dùng{" "}
-            <span className="font-bold">10*</span> hoặc <span className="font-bold">20</span> khi demo trực tiếp.
+            <span className="font-bold">Batch N = 100 Notice:</span> Running 100 samples including
+            12 scanned images (<code className="font-semibold">RapidOCR</code>) and 100{" "}
+            <code className="font-semibold">gemini-3.8-flash</code> calls takes{" "}
+            <span className="font-bold">~4–8 min</span> and ~100K input tokens/track.
           </div>
         </div>
       )}
