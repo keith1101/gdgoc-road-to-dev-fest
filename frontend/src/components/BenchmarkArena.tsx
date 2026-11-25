@@ -320,12 +320,12 @@ export function BenchmarkArena() {
           </span>
         </div>
 
-        <div className="flex w-full items-center justify-end gap-2.5 sm:w-auto sm:gap-3">
+        <div className="flex w-full items-center gap-2.5 sm:w-auto sm:justify-end sm:gap-3">
           {rows.length > 0 && !running && (
             <button
               type="button"
               onClick={clearSnapshot}
-              className="brutal-btn flex items-center gap-1.5 border-2 border-ink bg-mutedSurface px-3 py-2 font-display text-xs font-bold text-ink hover:bg-white"
+              className="brutal-btn flex items-center justify-center gap-1.5 border-2 border-ink bg-mutedSurface px-3 py-2 font-display text-xs font-bold text-ink hover:bg-white"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Reset
@@ -334,7 +334,7 @@ export function BenchmarkArena() {
           <button
             type="button"
             onClick={running ? stopRun : startRun}
-            className={`brutal-btn flex items-center gap-2 border-2 border-ink px-5 py-2 font-display text-xs font-bold shadow-brutalSm transition ${
+            className={`brutal-btn flex flex-1 items-center justify-center gap-2 border-2 border-ink px-5 py-2 font-display text-xs font-bold shadow-brutalSm transition sm:flex-initial ${
               running
                 ? "bg-gdgRed text-white hover:brightness-110"
                 : "bg-fptu text-ink hover:brightness-105"
@@ -362,16 +362,16 @@ export function BenchmarkArena() {
       )}
 
       {rows.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {kpiCards.map((c) => {
             const sum = summaries[c.track];
             const done = (sum?.completed ?? 0) + (sum?.errors ?? 0);
             const pct = Math.round((done / totalCount) * 100);
             return (
-              <div key={c.track} className="border-2 border-ink bg-surface px-3 py-2 font-mono text-xs">
-                <div className="flex items-center justify-between font-bold">
-                  <span className={c.accent}>{c.title}</span>
-                  <span className="tabular-nums">
+              <div key={c.track} className="min-w-0 border-2 border-ink bg-surface px-3 py-2 font-mono text-xs">
+                <div className="flex items-center justify-between gap-2 font-bold">
+                  <span className={`truncate ${c.accent}`}>{c.title}</span>
+                  <span className="shrink-0 tabular-nums">
                     {done}/{totalCount}
                   </span>
                 </div>
@@ -387,32 +387,37 @@ export function BenchmarkArena() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {kpiCards.map((c) => {
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {kpiCards.map((c, idx) => {
           const s = summaries[c.track];
           return (
-            <article key={c.track} className="brutal-card p-4">
-              <h2 className={`border-b-2 border-ink pb-2 font-display text-sm font-bold ${c.accent}`}>
+            <article
+              key={c.track}
+              className={`brutal-card min-w-0 p-3.5 sm:p-4 ${
+                idx === 2 ? "md:col-span-2 lg:col-span-1" : ""
+              }`}
+            >
+              <h2 className={`truncate border-b-2 border-ink pb-2 font-display text-sm font-bold ${c.accent}`}>
                 {c.title}
               </h2>
               <div className="mt-3 grid grid-cols-2 gap-3 font-mono text-xs tabular-nums">
-                <div>
+                <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase text-inkSecondary">
                     Accuracy (All / Tool)
                   </div>
-                  <div className="text-base font-bold text-ink">
+                  <div className="text-sm font-bold text-ink sm:text-base">
                     {s ? `${s.accuracy_all.toFixed(1)}% / ${s.tool_accuracy.toFixed(1)}%` : "—"}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase text-inkSecondary">
                     Cost / 1M Req
                   </div>
-                  <div className="text-base font-bold text-ink">
+                  <div className="text-sm font-bold text-ink sm:text-base">
                     {s ? `$${s.est_cost_per_1m_usd.toFixed(2)}` : "—"}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase text-inkSecondary">
                     p50 / p95 RTT
                   </div>
@@ -420,7 +425,7 @@ export function BenchmarkArena() {
                     {s ? `${s.p50_ms.toFixed(1)} / ${s.p95_ms.toFixed(1)} ms` : "—"}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase text-inkSecondary">
                     Out Tok · 503 Retries
                   </div>
@@ -428,7 +433,7 @@ export function BenchmarkArena() {
                     {s ? `${s.avg_output_tokens} · ${s.retries_503}` : "—"}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase text-inkSecondary">
                     Text vs Complex
                   </div>
@@ -440,7 +445,7 @@ export function BenchmarkArena() {
                       : "—"}
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-[10px] font-semibold uppercase text-inkSecondary">
                     Boundary (&lt;0.90) · ECE
                   </div>

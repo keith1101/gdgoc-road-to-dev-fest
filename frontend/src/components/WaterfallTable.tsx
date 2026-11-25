@@ -62,14 +62,14 @@ function TrackCell({ ev }: { ev?: StreamSampleEvent }) {
 
 export function WaterfallTable({ rows }: WaterfallTableProps) {
   return (
-    <div className="brutal-card overflow-hidden">
-      <div className="border-b-2 border-ink bg-mutedSurface px-4 py-2.5">
+    <div className="brutal-card min-w-0 overflow-hidden">
+      <div className="border-b-2 border-ink bg-mutedSurface px-3 py-2.5 sm:px-4">
         <h3 className="font-display text-sm font-bold text-ink">
           Live Request Waterfall ({rows.length} Samples)
         </h3>
       </div>
       <div
-        className="waterfall-wrap max-h-[420px] overflow-auto"
+        className="waterfall-wrap max-h-[540px] w-full min-w-0 overflow-auto md:max-h-[420px]"
         role="region"
         aria-label="Live Request Waterfall"
         tabIndex={0}
@@ -87,8 +87,8 @@ export function WaterfallTable({ rows }: WaterfallTableProps) {
           </thead>
           <tbody className="divide-y divide-zinc-200 bg-surface text-xs">
             {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center font-mono text-inkSecondary">
+              <tr className="waterfall-empty-row">
+                <td colSpan={6} className="waterfall-empty px-4 py-8 text-center font-mono text-inkSecondary">
                   No benchmark run yet. Select Batch Size and click RUN BENCHMARK.
                 </td>
               </tr>

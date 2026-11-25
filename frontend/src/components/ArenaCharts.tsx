@@ -74,12 +74,12 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
         <p className="mb-3 text-xs text-inkSecondary">
           Dynamic Y-axis · Tooltip shows Avg Output Tokens
         </p>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-56 w-full min-w-0 sm:h-60">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={latencyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#18181B" }} />
-              <YAxis domain={[0, "auto"]} tick={{ fontSize: 11, fill: "#52525B" }} />
+              <YAxis width={42} domain={[0, "auto"]} tick={{ fontSize: 10, fill: "#52525B" }} />
               <Tooltip
                 contentStyle={{
                   border: "2px solid #18181B",
@@ -107,12 +107,12 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
         <p className="mb-3 text-xs text-inkSecondary">
           In-Domain Tickets vs Injection / OOS / Scanned Images
         </p>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-56 w-full min-w-0 sm:h-60">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={accuracyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#18181B" }} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#52525B" }} />
+              <YAxis width={38} domain={[0, 100]} tick={{ fontSize: 10, fill: "#52525B" }} />
               <Tooltip
                 contentStyle={{
                   border: "2px solid #18181B",
@@ -137,8 +137,8 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
         <p className="mb-3 text-xs text-inkSecondary">
           Top-Left is Optimal (High Accuracy, Low Cost)
         </p>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-56 w-full min-w-0 sm:h-60">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <ScatterChart margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" />
               <XAxis
@@ -147,15 +147,16 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
                 name="Cost"
                 unit="$"
                 domain={[0, "auto"]}
-                tick={{ fontSize: 11, fill: "#52525B" }}
+                tick={{ fontSize: 10, fill: "#52525B" }}
               />
               <YAxis
+                width={42}
                 type="number"
                 dataKey="accuracy"
                 name="Accuracy"
                 unit="%"
                 domain={[0, 100]}
-                tick={{ fontSize: 11, fill: "#52525B" }}
+                tick={{ fontSize: 10, fill: "#52525B" }}
               />
               <ZAxis range={[120, 120]} />
               <Tooltip
