@@ -106,12 +106,18 @@ QUESTIONS_6: dict[str, dict[str, Any]] = {
     "is_in_scope": {
         "type": "noul",
         "instructions": (
-            "Is this request within enterprise IT support, billing/invoice approval, "
-            "product/technical documentation, or security incident scope?"
+            "Is this request within enterprise IT support, customer/product/business support, "
+            "billing/invoice approval, technical documentation, or security incident scope?"
         ),
         "criteria": {
-            "true_description": "Enterprise IT, SaaS/account, network, billing/invoice, security, or technical spec.",
-            "false_description": "General trivia, stock market queries, consumer chit-chat, or unrelated OOS topics.",
+            "true_description": (
+                "Enterprise IT, customer/product support, business/service inquiries, "
+                "SaaS/account, network, billing/invoice, security, or technical spec."
+            ),
+            "false_description": (
+                "Unrelated consumer trivia, stock quotes, recipes, jokes, or casual chit-chat "
+                "completely outside enterprise/customer support."
+            ),
         },
     },
     "route_target": {
@@ -223,7 +229,7 @@ async def run_decision_1(
             route_target = "BLOCK_POLICY"
             target_mcp_tool = "none_blocked"
             conf_route = round(max(conf_route, float(ans["is_prompt_injection"].confidence)), 4)
-        elif p_scope < 0.50:
+        elif p_scope < 0.35:
             route_target = "ESCALATE_REASONING"
             target_mcp_tool = "mcp_security_triage"
             requires_human = True
