@@ -23,6 +23,7 @@ def _resolve_frontend_dist() -> Path:
 
 DATA_DIR: Path = _resolve_data_dir()
 SAMPLES_PATH: Path = DATA_DIR / "samples.json"
+BENCHMARK_100_PATH: Path = DATA_DIR / "benchmark_100.json"
 SVM_MODEL_PATH: Path = DATA_DIR / "svm_baseline.pkl"
 REAL_DOCS_DIR: Path = DATA_DIR / "assets" / "real_docs"
 FRONTEND_DIST_DIR: Path = _resolve_frontend_dist()

@@ -80,7 +80,7 @@ export interface WaterfallRow {
 }
 
 export interface ArenaSnapshot {
-  limit: 5 | 10 | 20;
+  limit: 5 | 10 | 20 | 100;
   updatedAt: string;
   rows: WaterfallRow[];
   summaries: Partial<Record<TrackName, TrackSummary>>;

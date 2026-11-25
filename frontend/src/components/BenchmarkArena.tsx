@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Square, Trash2 } from "lucide-react";
+import { AlertTriangle, Play, Square, Trash2 } from "lucide-react";
 import { getAuthHeaders } from "../keyStore";
 import type {
   ArenaSnapshot,
@@ -118,7 +118,7 @@ function computeLiveSummary(
 }
 
 export function BenchmarkArena() {
-  const [limit, setLimit] = useState<5 | 10 | 20>(10);
+  const [limit, setLimit] = useState<5 | 10 | 20 | 100>(10);
   const [running, setRunning] = useState(false);
   const [rows, setRows] = useState<WaterfallRow[]>([]);
   const [summaries, setSummaries] = useState<Partial<Record<TrackName, TrackSummary>>>({});
@@ -145,7 +145,7 @@ export function BenchmarkArena() {
   }, []);
 
   const persistSnapshot = (
-    nextLimit: 5 | 10 | 20,
+    nextLimit: 5 | 10 | 20 | 100,
     nextRows: WaterfallRow[],
     nextSummaries: Partial<Record<TrackName, TrackSummary>>
   ) => {
@@ -296,7 +296,7 @@ export function BenchmarkArena() {
             Batch Size
           </span>
           <div className="flex border-2 border-ink bg-mutedSurface">
-            {([5, 10, 20] as const).map((n) => (
+            {([5, 10, 20, 100] as const).map((n) => (
               <button
                 key={n}
                 type="button"
@@ -306,17 +306,21 @@ export function BenchmarkArena() {
                   n !== 5 ? "border-l-2 border-ink" : ""
                 } ${
                   limit === n
-                    ? "bg-ink text-white"
+                    ? n === 100
+                      ? "bg-amber-600 text-white"
+                      : "bg-ink text-white"
                     : "text-ink hover:bg-white disabled:opacity-50"
                 }`}
               >
                 {n}
-                {n === 10 ? "*" : ""}
+                {n === 10 ? "*" : n === 100 ? " !" : ""}
               </button>
             ))}
           </div>
           <span className="hidden font-mono text-xs text-inkSecondary md:inline">
-            Balanced 4-source Hugging Face slice
+            {limit === 100
+              ? "Full 100-sample HF evaluation (20 per action class)"
+              : "Balanced 4-source Hugging Face slice"}
           </span>
         </div>
 
@@ -354,6 +358,22 @@ export function BenchmarkArena() {
           </button>
         </div>
       </div>
+
+      {limit === 100 && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 border-2 border-amber-700 bg-amber-50 px-4 py-3 font-mono text-xs text-amber-950"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+          <div>
+            <span className="font-bold">Cảnh báo Batch N = 100:</span> Chạy 100 mẫu gồm 12 ảnh scan (
+            <code className="font-semibold">RapidOCR</code> CPU) và 100 lượt gọi{" "}
+            <code className="font-semibold">gemini-3.8-flash</code> mất khoảng{" "}
+            <span className="font-bold">4–8 phút</span>, tiêu tốn ~100K input tokens/track và dễ chạm giới hạn RAM/timeout trên Render Free Tier. Khuyến nghị dùng{" "}
+            <span className="font-bold">10*</span> hoặc <span className="font-bold">20</span> khi demo trực tiếp.
+          </div>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="border-2 border-gdgRed bg-red-50 px-4 py-2 font-mono text-xs font-semibold text-gdgRed">

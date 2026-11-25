@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .config import DATA_DIR, SAMPLES_PATH
+from .config import BENCHMARK_100_PATH, DATA_DIR, SAMPLES_PATH
 
 _SAMPLES_CACHE: list[dict[str, Any]] | None = None
+_BENCHMARK_100_CACHE: list[dict[str, Any]] | None = None
 
 DEFAULT_ATTACHMENT_PROMPT = (
     "Evaluate and route this attached document for Agentic Control Plane processing."
@@ -19,7 +20,16 @@ def load_all_samples() -> list[dict[str, Any]]:
     return _SAMPLES_CACHE
 
 
+def load_benchmark_100() -> list[dict[str, Any]]:
+    global _BENCHMARK_100_CACHE
+    if _BENCHMARK_100_CACHE is None:
+        _BENCHMARK_100_CACHE = json.loads(BENCHMARK_100_PATH.read_text(encoding="utf-8"))
+    return _BENCHMARK_100_CACHE
+
+
 def get_samples(limit: int = 10) -> list[dict[str, Any]]:
+    if limit == 100:
+        return load_benchmark_100()
     samples = load_all_samples()
     if limit not in (5, 10, 20):
         limit = max(1, min(limit, len(samples)))

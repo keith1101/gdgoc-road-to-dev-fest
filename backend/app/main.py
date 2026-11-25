@@ -162,8 +162,8 @@ async def benchmark_stream(
     request: Request,
     limit: int = Query(default=10),
 ) -> StreamingResponse:
-    if limit not in (5, 10, 20):
-        raise HTTPException(status_code=400, detail="limit must be 5, 10, or 20")
+    if limit not in (5, 10, 20, 100):
+        raise HTTPException(status_code=400, detail="limit must be 5, 10, 20, or 100")
 
     api_key = request.headers.get("x-gemini-api-key")
     vertex_sa_b64 = request.headers.get("x-vertex-sa-json")
