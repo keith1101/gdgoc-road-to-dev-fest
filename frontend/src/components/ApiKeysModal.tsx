@@ -6,6 +6,27 @@ import {
   type ByokConfig,
 } from "../keyStore";
 
+const VERTEX_LOCATIONS = [
+  "global",
+  "us-central1",
+  "us-east1",
+  "us-east4",
+  "us-east5",
+  "us-south1",
+  "us-west1",
+  "us-west4",
+  "europe-west1",
+  "europe-west2",
+  "europe-west3",
+  "europe-west4",
+  "europe-west9",
+  "asia-southeast1",
+  "asia-northeast1",
+  "asia-northeast3",
+  "asia-south1",
+  "australia-southeast1",
+] as const;
+
 interface ApiKeysModalProps {
   open: boolean;
   initialConfig: ByokConfig;
@@ -213,15 +234,26 @@ export function ApiKeysModal({
                 >
                   Vertex Location
                 </label>
-                <input
+                <select
                   id="byok-location"
-                  type="text"
                   value={draft.vertexLocation}
                   onChange={(e) =>
                     setDraft((prev) => ({ ...prev, vertexLocation: e.target.value }))
                   }
                   className="w-full border-2 border-ink bg-white px-2.5 py-1.5 font-mono text-xs text-ink"
-                />
+                >
+                  {!VERTEX_LOCATIONS.includes(
+                    draft.vertexLocation as (typeof VERTEX_LOCATIONS)[number]
+                  ) &&
+                    draft.vertexLocation && (
+                      <option value={draft.vertexLocation}>{draft.vertexLocation}</option>
+                    )}
+                  {VERTEX_LOCATIONS.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
