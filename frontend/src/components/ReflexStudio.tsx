@@ -21,7 +21,7 @@ const CARD_CONFIGS: TrackCardMeta[] = [
   {
     key: "ml",
     title: "Classical ML · SVM",
-    subtitle: "Dual-Head Calibrated LinearSVC (CPU)",
+    subtitle: "Dual-Head Calibrated LinearSVC",
     badgeColor: "text-ink",
   },
   {
