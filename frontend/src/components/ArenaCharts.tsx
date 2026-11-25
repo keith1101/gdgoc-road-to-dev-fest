@@ -21,7 +21,7 @@ interface ArenaChartsProps {
 const TRACK_LABELS: Record<TrackName, string> = {
   ml: "SVM",
   decision: "Decision-1",
-  llm: "Flash-Lite",
+  llm: "3.8-Flash",
 };
 
 const TRACK_COLORS: Record<TrackName, string> = {
@@ -66,8 +66,8 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
     });
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="brutal-card p-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="brutal-card min-w-0 p-3 sm:p-4">
         <h3 className="font-display text-sm font-bold text-ink">
           1. Latency p50 / p95 (ms)
         </h3>
@@ -100,7 +100,7 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
         </div>
       </div>
 
-      <div className="brutal-card p-4">
+      <div className="brutal-card min-w-0 p-3 sm:p-4">
         <h3 className="font-display text-sm font-bold text-ink">
           2. Accuracy: Standard Text vs Complex Data (%)
         </h3>
@@ -130,7 +130,7 @@ export function ArenaCharts({ summaries }: ArenaChartsProps) {
         </div>
       </div>
 
-      <div className="brutal-card p-4">
+      <div className="brutal-card min-w-0 p-3 sm:p-4 md:col-span-2 xl:col-span-1">
         <h3 className="font-display text-sm font-bold text-ink">
           3. Pareto: Accuracy (%) vs Cost ($/1M Req)
         </h3>

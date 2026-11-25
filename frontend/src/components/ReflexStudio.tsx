@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { FileText, Play, RotateCcw, Upload, X } from "lucide-react";
+import { getAuthHeaders } from "../keyStore";
 import type { SingleInspectResponse, TrackResult } from "../types";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -32,8 +33,8 @@ const CARD_CONFIGS: TrackCardMeta[] = [
   },
   {
     key: "llm",
-    title: "Generative LLM · 3.5-flash-lite",
-    subtitle: "Autoregressive Structured JSON (minimal)",
+    title: "Generative LLM · gemini-3.8-flash",
+    subtitle: "Vertex AI Structured JSON (thinking: low)",
     badgeColor: "text-gdgAmber",
   },
 ];
@@ -53,7 +54,7 @@ function ResultCard({
   data: TrackResult | null;
 }) {
   return (
-    <article className="brutal-card flex flex-col justify-between p-4">
+    <article className="brutal-card flex min-w-0 flex-col justify-between p-3.5 sm:p-4">
       <div>
         <div className="flex items-start justify-between gap-2 border-b-2 border-ink pb-3">
           <div>
@@ -215,6 +216,7 @@ export function ReflexStudio() {
 
       const resp = await fetch("/api/decide/single", {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
       if (!resp.ok) {

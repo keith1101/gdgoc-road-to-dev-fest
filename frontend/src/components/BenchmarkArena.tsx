@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Square, Trash2 } from "lucide-react";
+import { getAuthHeaders } from "../keyStore";
 import type {
   ArenaSnapshot,
   SampleInitMeta,
@@ -15,7 +16,7 @@ const STORAGE_KEY = "gdgoc_devfest_arena_v1";
 const PRICING: Record<TrackName, { inRate: number; outRate: number }> = {
   ml: { inRate: 0, outRate: 0 },
   decision: { inRate: 0.1, outRate: 0 },
-  llm: { inRate: 0.3, outRate: 2.5 },
+  llm: { inRate: 0.75, outRate: 3.75 },
 };
 
 function percentile(sorted: number[], p: number): number {
@@ -122,7 +123,7 @@ export function BenchmarkArena() {
   const [rows, setRows] = useState<WaterfallRow[]>([]);
   const [summaries, setSummaries] = useState<Partial<Record<TrackName, TrackSummary>>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const esRef = useRef<EventSource | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     try {
@@ -139,7 +140,7 @@ export function BenchmarkArena() {
       // Ignore malformed localStorage
     }
     return () => {
-      esRef.current?.close();
+      abortRef.current?.abort();
     };
   }, []);
 
@@ -163,8 +164,8 @@ export function BenchmarkArena() {
   };
 
   const stopRun = () => {
-    esRef.current?.close();
-    esRef.current = null;
+    abortRef.current?.abort();
+    abortRef.current = null;
     setRunning(false);
   };
 
@@ -176,69 +177,98 @@ export function BenchmarkArena() {
     setErrorMsg(null);
   };
 
-  const startRun = () => {
+  const startRun = async () => {
     stopRun();
     setErrorMsg(null);
     setRunning(true);
     setRows([]);
     setSummaries({});
 
-    const es = new EventSource(`/api/benchmark/stream?limit=${limit}`);
-    esRef.current = es;
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     let currentRows: WaterfallRow[] = [];
     let currentSummaries: Partial<Record<TrackName, TrackSummary>> = {};
     let currentTotal: number = limit;
 
-    es.addEventListener("init", (ev) => {
-      const data = JSON.parse((ev as MessageEvent).data) as {
-        total: number;
-        samples: SampleInitMeta[];
-      };
-      currentTotal = data.total;
-      currentRows = data.samples.map((meta) => ({ meta }));
-      setRows(currentRows);
-    });
-
-    es.addEventListener("result", (ev) => {
-      const item = JSON.parse((ev as MessageEvent).data) as StreamSampleEvent;
-      currentRows = currentRows.map((row, idx) =>
-        idx === item.index ? { ...row, [item.track]: item } : row
-      );
-      const liveSum = computeLiveSummary(item.track, currentRows, currentTotal);
-      if (liveSum) {
-        currentSummaries = { ...currentSummaries, [item.track]: liveSum };
+    const handleSseEvent = (eventName: string, dataText: string) => {
+      if (eventName === "init") {
+        const data = JSON.parse(dataText) as {
+          total: number;
+          samples: SampleInitMeta[];
+        };
+        currentTotal = data.total;
+        currentRows = data.samples.map((meta) => ({ meta }));
+        setRows(currentRows);
+      } else if (eventName === "result") {
+        const item = JSON.parse(dataText) as StreamSampleEvent;
+        currentRows = currentRows.map((row, idx) =>
+          idx === item.index ? { ...row, [item.track]: item } : row
+        );
+        const liveSum = computeLiveSummary(item.track, currentRows, currentTotal);
+        if (liveSum) {
+          currentSummaries = { ...currentSummaries, [item.track]: liveSum };
+        }
+        setRows(currentRows);
+        setSummaries(currentSummaries);
+        persistSnapshot(limit, currentRows, currentSummaries);
+      } else if (eventName === "track_done") {
+        const sum = JSON.parse(dataText) as TrackSummary;
+        currentSummaries = { ...currentSummaries, [sum.track]: sum };
+        setSummaries(currentSummaries);
+        persistSnapshot(limit, currentRows, currentSummaries);
+      } else if (eventName === "complete") {
+        const data = JSON.parse(dataText) as {
+          summaries: Record<TrackName, TrackSummary>;
+        };
+        currentSummaries = data.summaries;
+        setSummaries(currentSummaries);
+        persistSnapshot(limit, currentRows, currentSummaries);
       }
-      setRows(currentRows);
-      setSummaries(currentSummaries);
-      persistSnapshot(limit, currentRows, currentSummaries);
-    });
-
-    es.addEventListener("track_done", (ev) => {
-      const sum = JSON.parse((ev as MessageEvent).data) as TrackSummary;
-      currentSummaries = { ...currentSummaries, [sum.track]: sum };
-      setSummaries(currentSummaries);
-      persistSnapshot(limit, currentRows, currentSummaries);
-    });
-
-    es.addEventListener("complete", (ev) => {
-      const data = JSON.parse((ev as MessageEvent).data) as {
-        summaries: Record<TrackName, TrackSummary>;
-      };
-      currentSummaries = data.summaries;
-      setSummaries(currentSummaries);
-      persistSnapshot(limit, currentRows, currentSummaries);
-      es.close();
-      esRef.current = null;
-      setRunning(false);
-    });
-
-    es.onerror = () => {
-      setErrorMsg("SSE stream disconnected or failed.");
-      es.close();
-      esRef.current = null;
-      setRunning(false);
     };
+
+    try {
+      const resp = await fetch(`/api/benchmark/stream?limit=${limit}`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        signal: controller.signal,
+      });
+      if (!resp.ok || !resp.body) {
+        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() ?? "";
+
+        for (const chunk of chunks) {
+          if (!chunk.trim() || chunk.startsWith(":")) continue;
+          let evName = "message";
+          let dataStr = "";
+          for (const line of chunk.split("\n")) {
+            if (line.startsWith("event: ")) evName = line.slice(7).trim();
+            else if (line.startsWith("data: ")) dataStr += line.slice(6);
+          }
+          if (dataStr) {
+            handleSseEvent(evName, dataStr);
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error)?.name !== "AbortError") {
+        setErrorMsg(err instanceof Error ? err.message : "SSE stream failed.");
+      }
+    } finally {
+      abortRef.current = null;
+      setRunning(false);
+    }
   };
 
   const kpiCards: {
@@ -248,7 +278,7 @@ export function BenchmarkArena() {
   }[] = [
     { track: "ml", title: "Classical ML · Dual-Head SVM", accent: "text-ink" },
     { track: "decision", title: "Decisions API · gemini-decision-1", accent: "text-gdgBlue" },
-    { track: "llm", title: "Generative LLM · 3.5-flash-lite", accent: "text-gdgAmber" },
+    { track: "llm", title: "Generative LLM · gemini-3.8-flash", accent: "text-gdgAmber" },
   ];
 
   const totalCount = rows.length || limit;
@@ -260,7 +290,7 @@ export function BenchmarkArena() {
       aria-labelledby="tab-arena"
       className="space-y-5"
     >
-      <div className="brutal-card flex flex-wrap items-center justify-between gap-4 p-4">
+      <div className="brutal-card flex flex-col gap-3 p-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-4">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-display text-xs font-bold uppercase tracking-wider text-inkSecondary">
             Batch Size
@@ -285,12 +315,12 @@ export function BenchmarkArena() {
               </button>
             ))}
           </div>
-          <span className="hidden font-mono text-xs text-inkSecondary sm:inline">
+          <span className="hidden font-mono text-xs text-inkSecondary md:inline">
             Balanced 4-source Hugging Face slice
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex w-full items-center justify-end gap-2.5 sm:w-auto sm:gap-3">
           {rows.length > 0 && !running && (
             <button
               type="button"

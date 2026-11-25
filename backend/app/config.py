@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 _THIS_FILE = Path(__file__).resolve()
@@ -35,18 +36,20 @@ ALLOWED_MIME_TYPES: set[str] = {
 }
 
 DECISION_MODEL: str = "gemini-decision-1"
-LLM_MODEL: str = "gemini-3.5-flash-lite"
+LLM_MODEL: str = "gemini-3.8-flash"
+VERTEX_PROJECT_ID: str = os.environ.get("VERTEX_PROJECT_ID", "fptu2025")
+VERTEX_LOCATION: str = os.environ.get("VERTEX_LOCATION", "global")
 SVM_MODEL_LABEL: str = "Dual-Head Calibrated SVM"
 
 DECISION_CONCURRENCY: int = 3
-LLM_PACER_INTERVAL_S: float = 4.3
+LLM_PACER_INTERVAL_S: float = 0.5
 LLM_RETRY_DELAYS: tuple[float, ...] = (4.0, 8.0, 15.0)
 SSE_HEARTBEAT_S: float = 10.0
 
 PRICING: dict[str, dict[str, float]] = {
     "ml": {"input_per_1m": 0.0, "output_per_1m": 0.0},
     "decision": {"input_per_1m": 0.10, "output_per_1m": 0.0},
-    "llm": {"input_per_1m": 0.30, "output_per_1m": 2.50},
+    "llm": {"input_per_1m": 0.75, "output_per_1m": 3.75},
 }
 
 ACTION_LABELS: tuple[str, ...] = (

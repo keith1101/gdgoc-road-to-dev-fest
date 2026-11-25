@@ -74,8 +74,9 @@ async def healthz() -> dict[str, Any]:
 
 
 @app.get("/api/ping")
-async def ping() -> dict[str, Any]:
-    return await ping_decision_api()
+async def ping(request: Request) -> dict[str, Any]:
+    api_key = request.headers.get("x-gemini-api-key")
+    return await ping_decision_api(api_key=api_key)
 
 
 @app.get("/api/samples")
@@ -100,9 +101,14 @@ async def list_samples(limit: int = Query(default=10, ge=1, le=20)) -> dict[str,
 
 @app.post("/api/decide/single", response_model=SingleInspectResponse)
 async def decide_single(
+    request: Request,
     text: str = Form(default=""),
     file: UploadFile | None = File(default=None),
 ) -> SingleInspectResponse:
+    api_key = request.headers.get("x-gemini-api-key")
+    vertex_sa_b64 = request.headers.get("x-vertex-sa-json")
+    vertex_project = request.headers.get("x-vertex-project")
+    vertex_location = request.headers.get("x-vertex-location")
     file_bytes: bytes | None = None
     mime_type: str | None = None
 
@@ -133,8 +139,14 @@ async def decide_single(
 
     ml_res, dec_res, llm_res = await asyncio.gather(
         _run_ml(),
-        run_decision_1(input_blocks),
-        run_flash_lite(input_blocks),
+        run_decision_1(input_blocks, api_key=api_key),
+        run_flash_lite(
+            input_blocks,
+            api_key=api_key,
+            vertex_sa_b64=vertex_sa_b64,
+            vertex_project=vertex_project,
+            vertex_location=vertex_location,
+        ),
     )
 
     return SingleInspectResponse(ml=ml_res, decision=dec_res, llm=llm_res)
@@ -144,13 +156,18 @@ def _sse_event(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-@app.get("/api/benchmark/stream")
+@app.api_route("/api/benchmark/stream", methods=["GET", "POST"])
 async def benchmark_stream(
     request: Request,
     limit: int = Query(default=10),
 ) -> StreamingResponse:
     if limit not in (5, 10, 20):
         raise HTTPException(status_code=400, detail="limit must be 5, 10, or 20")
+
+    api_key = request.headers.get("x-gemini-api-key")
+    vertex_sa_b64 = request.headers.get("x-vertex-sa-json")
+    vertex_project = request.headers.get("x-vertex-project")
+    vertex_location = request.headers.get("x-vertex-location")
 
     samples = get_samples(limit)
     total = len(samples)
@@ -204,7 +221,7 @@ async def benchmark_stream(
             async def one(idx: int, s: dict[str, Any]) -> None:
                 blocks = build_sample_input_blocks(s)
                 async with dec_sem:
-                    res = await run_decision_1(blocks)
+                    res = await run_decision_1(blocks, api_key=api_key)
                 rec = {
                     "track": "decision",
                     "index": idx,
@@ -227,7 +244,14 @@ async def benchmark_stream(
             t0 = time.perf_counter()
             for idx, s in enumerate(samples):
                 blocks = build_sample_input_blocks(s)
-                res = await run_flash_lite(blocks, pacer=llm_pacer)
+                res = await run_flash_lite(
+                    blocks,
+                    pacer=llm_pacer,
+                    api_key=api_key,
+                    vertex_sa_b64=vertex_sa_b64,
+                    vertex_project=vertex_project,
+                    vertex_location=vertex_location,
+                )
                 rec = {
                     "track": "llm",
                     "index": idx,

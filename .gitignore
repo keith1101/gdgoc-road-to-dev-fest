@@ -1,5 +1,8 @@
 .env
 .env.*
+secret/
+*.pem
+*.key
 **/.venv/
 **/node_modules/
 **/dist/

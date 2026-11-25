@@ -7,5 +7,7 @@ services:
     autoDeploy: true
     healthCheckPath: /api/healthz
     envVars:
-      - key: GEMINI_API_KEY
-        sync: false
+      - key: VERTEX_PROJECT_ID
+        value: fptu2025
+      - key: VERTEX_LOCATION
+        value: global

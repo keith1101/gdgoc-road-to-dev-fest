@@ -20,7 +20,7 @@ function TrackCell({ ev }: { ev?: StreamSampleEvent }) {
             503×{r.retries_503}
           </span>
         )}
-        <div className="max-w-[180px] truncate text-gdgRed" title={r.error_message ?? ""}>
+        <div className="break-all text-gdgRed sm:max-w-[200px] sm:truncate" title={r.error_message ?? ""}>
           {r.error_message || "API failure"}
         </div>
       </div>
@@ -82,7 +82,7 @@ export function WaterfallTable({ rows }: WaterfallTableProps) {
               <th className="px-3 py-2.5">Ground Truth</th>
               <th className="px-3 py-2.5">ML (SVM)</th>
               <th className="px-3 py-2.5">Decisions API</th>
-              <th className="px-3 py-2.5">LLM (Flash-Lite)</th>
+              <th className="px-3 py-2.5">LLM (3.8-Flash)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 bg-surface text-xs">
@@ -111,7 +111,7 @@ export function WaterfallTable({ rows }: WaterfallTableProps) {
                   <td data-label="Decisions API" className="px-3 py-2.5">
                     <TrackCell ev={row.decision} />
                   </td>
-                  <td data-label="LLM (Flash-Lite)" className="px-3 py-2.5">
+                  <td data-label="LLM (3.8-Flash)" className="px-3 py-2.5">
                     <TrackCell ev={row.llm} />
                   </td>
                 </tr>
