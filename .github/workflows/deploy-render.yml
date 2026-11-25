@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Offline Smoke Tests (Healthz & SVM/Samples)
         working-directory: backend
-        run: pytest -v -k test_healthz_and_samples tests/test_api_live.py
+        run: python -m pytest -v -k test_healthz_and_samples tests/test_api_live.py
 
   deploy_render:
     name: Trigger Render Deploy Hook
