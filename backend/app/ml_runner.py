@@ -6,6 +6,7 @@ from .config import SVM_MODEL_LABEL, SVM_MODEL_PATH
 from .schemas import TrackResult
 
 _SVM_BUNDLE: dict[str, Any] | None = None
+_OCR_ENGINE: Any | None = None
 
 
 def load_svm_bundle() -> dict[str, Any]:
@@ -16,11 +17,43 @@ def load_svm_bundle() -> dict[str, Any]:
     return _SVM_BUNDLE
 
 
-def predict_svm(text: str) -> TrackResult:
+def load_ocr_engine() -> Any:
+    """Lazy-load CPU RapidOCR engine once for image-to-text preprocessing."""
+    global _OCR_ENGINE
+    if _OCR_ENGINE is None:
+        from rapidocr_onnxruntime import RapidOCR
+
+        _OCR_ENGINE = RapidOCR()
+    return _OCR_ENGINE
+
+
+def _extract_ocr_text(file_bytes: bytes) -> str:
+    try:
+        ocr = load_ocr_engine()
+        res, _ = ocr(file_bytes)
+        if not res:
+            return ""
+        return " ".join(str(line[1]) for line in res if len(line) > 1 and line[1])
+    except Exception:
+        return ""
+
+
+def predict_svm(
+    text: str,
+    file_bytes: bytes | None = None,
+    mime_type: str | None = None,
+) -> TrackResult:
     bundle = load_svm_bundle()
     payload = text if text is not None else ""
+    model_label = SVM_MODEL_LABEL
 
     t0 = time.perf_counter()
+    if file_bytes and (mime_type or "").startswith("image/"):
+        ocr_text = _extract_ocr_text(file_bytes)
+        if ocr_text:
+            payload = f"{payload}\n{ocr_text}".strip()
+        model_label = f"{SVM_MODEL_LABEL} + RapidOCR"
+
     action_model = bundle["action_model"]
     tool_model = bundle["tool_model"]
     ap = action_model.predict_proba([payload])[0]
@@ -33,7 +66,7 @@ def predict_svm(text: str) -> TrackResult:
 
     return TrackResult(
         track="ml",
-        model_name=SVM_MODEL_LABEL,
+        model_name=model_label,
         status="ok",
         route_target=route_target,
         target_mcp_tool=target_mcp_tool,

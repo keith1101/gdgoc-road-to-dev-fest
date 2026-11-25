@@ -25,6 +25,7 @@ from .dataset_loader import (
     build_sample_input_blocks,
     get_samples,
     load_all_samples,
+    resolve_sample_file,
 )
 from .gemini_runner import AsyncRatePacer, ping_decision_api, run_decision_1, run_flash_lite
 from .metrics import summarize_track
@@ -135,7 +136,7 @@ async def decide_single(
     input_blocks = build_input_blocks(text, file_bytes, mime_type)
 
     async def _run_ml():
-        return predict_svm(text)
+        return await asyncio.to_thread(predict_svm, text, file_bytes, mime_type)
 
     ml_res, dec_res, llm_res = await asyncio.gather(
         _run_ml(),
@@ -199,8 +200,11 @@ async def benchmark_stream(
         async def run_ml_track() -> None:
             t0 = time.perf_counter()
             for idx, s in enumerate(samples):
-                raw_text = s.get("text", "") if s.get("modality") == "text" else ""
-                res = predict_svm(raw_text)
+                raw_text = s.get("text", "")
+                fpath = resolve_sample_file(s.get("file_path"))
+                fb = fpath.read_bytes() if (fpath and fpath.exists()) else None
+                mt = s.get("mime_type") or ("image/jpeg" if fb else None)
+                res = await asyncio.to_thread(predict_svm, raw_text, fb, mt)
                 rec = {
                     "track": "ml",
                     "index": idx,
