@@ -4,6 +4,7 @@ services:
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: .
+    autoDeploy: true
     healthCheckPath: /api/healthz
     envVars:
       - key: GEMINI_API_KEY
