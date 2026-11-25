@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-paper: #FBF9F5;
+  --bg-surface: #FFFFFF;
+  --bg-muted: #F4F1EA;
+  --ink-primary: #18181B;
+  --ink-secondary: #52525B;
+  --accent-fptu: #F37021;
+  --accent-blue: #1A73E8;
+  --accent-green: #137333;
+  --accent-amber: #B45309;
+  --accent-red: #D93025;
+}
+
+body {
+  background-color: var(--bg-paper);
+  background-image:
+    linear-gradient(to right, rgba(24, 24, 27, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(24, 24, 27, 0.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--ink-primary);
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.brutal-card {
+  background-color: var(--bg-surface);
+  border: 2px solid var(--ink-primary);
+  box-shadow: 4px 4px 0 0 var(--ink-primary);
+}
+
+.brutal-btn:focus-visible,
+[role="tab"]:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.waterfall-wrap {
+  container-type: inline-size;
+}
+
+@container (max-width: 720px) {
+  .waterfall-table thead {
+    display: none;
+  }
+  .waterfall-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 0.75rem;
+    border-bottom: 2px solid #18181B;
+  }
+  .waterfall-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.15rem 0;
+    border: none;
+  }
+  .waterfall-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #52525B;
+    text-transform: uppercase;
+  }
+}

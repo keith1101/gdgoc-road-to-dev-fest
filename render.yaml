@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: gdgoc-devfest-2026-control-plane-demo
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
