@@ -147,10 +147,71 @@ async def decide_single(
             vertex_sa_b64=vertex_sa_b64,
             vertex_project=vertex_project,
             vertex_location=vertex_location,
+            thinking_level="LOW",
         ),
     )
 
-    return SingleInspectResponse(ml=ml_res, decision=dec_res, llm=llm_res)
+    from .schemas import CascadeResult
+
+    cascade_threshold = 0.90
+    if dec_res.status == "ok" and (dec_res.confidence or 0.0) >= cascade_threshold:
+        cascade_res = CascadeResult(
+            threshold=cascade_threshold,
+            escalated=False,
+            trigger_reason=(
+                f"System 1 confidence {(dec_res.confidence or 0.0):.2f} >= {cascade_threshold:.2f} "
+                "— executed directly without System 2 LLM."
+            ),
+            final_source="decision",
+            final_route_target=dec_res.route_target,
+            final_target_mcp_tool=dec_res.target_mcp_tool,
+            est_blended_cost_per_1m_usd=dec_res.est_cost_per_1m_usd,
+            system2=None,
+        )
+    else:
+        s2_res = await run_flash_lite(
+            input_blocks,
+            api_key=api_key,
+            vertex_sa_b64=vertex_sa_b64,
+            vertex_project=vertex_project,
+            vertex_location=vertex_location,
+            thinking_level="HIGH",
+        )
+        use_s2 = s2_res.status == "ok"
+        s2_label = (
+            "Gemini 3.8 Flash (thinking: HIGH)"
+            if s2_res.model_name.startswith("gemini-3.8-flash")
+            else f"{s2_res.model_name} (spike fallback)"
+        )
+        reason = (
+            f"System 1 unavailable — escalated to {s2_label}."
+            if dec_res.status != "ok"
+            else (
+                f"System 1 confidence {(dec_res.confidence or 0.0):.2f} < {cascade_threshold:.2f} "
+                f"— escalated to {s2_label}."
+            )
+        )
+        cascade_res = CascadeResult(
+            threshold=cascade_threshold,
+            escalated=True,
+            trigger_reason=reason,
+            final_source="system2" if use_s2 else "decision",
+            final_route_target=s2_res.route_target if use_s2 else dec_res.route_target,
+            final_target_mcp_tool=(
+                s2_res.target_mcp_tool if use_s2 else dec_res.target_mcp_tool
+            ),
+            est_blended_cost_per_1m_usd=round(
+                dec_res.est_cost_per_1m_usd + s2_res.est_cost_per_1m_usd, 2
+            ),
+            system2=s2_res,
+        )
+
+    return SingleInspectResponse(
+        ml=ml_res,
+        decision=dec_res,
+        llm=llm_res,
+        cascade=cascade_res,
+    )
 
 
 def _sse_event(event: str, payload: dict[str, Any]) -> str:

@@ -3,7 +3,7 @@ import base64
 import json
 import os
 import time
-from typing import Any
+from typing import Any, Literal
 
 from google import genai
 from google.genai import types
@@ -11,7 +11,10 @@ from google.oauth2 import service_account
 
 from .config import (
     DECISION_MODEL,
+    LLM_FALLBACK_CHAIN,
     LLM_MODEL,
+    LLM_MODEL_PRICING,
+    LLM_REQUEST_TIMEOUT_S,
     LLM_RETRY_DELAYS,
     PRICING,
     VERTEX_LOCATION,
@@ -60,8 +63,8 @@ def _build_llm_client(
     if key:
         return (
             genai.Client(api_key=key, http_options={"api_version": "v1beta"}),
-            "gemini-3.6-flash",
-            {"input_per_1m": 0.50, "output_per_1m": 3.00},
+            LLM_MODEL,
+            PRICING["llm"],
         )
 
     raise ValueError(
@@ -309,6 +312,52 @@ def _build_fair_rubric_prompt() -> str:
 _FAIR_RUBRIC_PROMPT = _build_fair_rubric_prompt()
 
 
+def _format_llm_display_name(
+    model_id: str,
+    thinking_level: Literal["LOW", "MEDIUM", "HIGH"],
+) -> str:
+    return (
+        model_id
+        if thinking_level == "LOW"
+        else f"{model_id} (thinking: {thinking_level.lower()})"
+    )
+
+
+def _classify_llm_error(exc: Exception) -> tuple[bool, bool, bool]:
+    """Return (is_429, is_503_or_timeout, is_not_found) for spike-fallback routing."""
+    is_timeout = isinstance(exc, (asyncio.TimeoutError, TimeoutError))
+    err_str = str(exc)
+    is_429 = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
+    is_503 = (
+        is_timeout
+        or "503" in err_str
+        or "500" in err_str
+        or "UNAVAILABLE" in err_str
+        or "Unavailable" in err_str
+        or "high demand" in err_str.lower()
+    )
+    is_not_found = "404" in err_str or "NOT_FOUND" in err_str
+    return is_429, is_503, is_not_found
+
+
+def _build_llm_attempt_schedule(primary_model: str) -> list[tuple[str, float]]:
+    """Build ordered (model_id, pre_delay_s) cascade: primary retry then 3.7 -> 3.6 -> 3.5."""
+    chain = [primary_model, *[m for m in LLM_FALLBACK_CHAIN if m != primary_model]]
+    primary_retry = LLM_RETRY_DELAYS[0] if LLM_RETRY_DELAYS else 1.5
+    sweep_delay = LLM_RETRY_DELAYS[1] if len(LLM_RETRY_DELAYS) > 1 else 4.0
+
+    # Pass 1: try primary with one brief retry, then cascade through 3.7 -> 3.6 -> 3.5 immediately.
+    schedule: list[tuple[str, float]] = [(chain[0], 0.0), (chain[0], primary_retry)]
+    for fallback_model in chain[1:]:
+        schedule.append((fallback_model, 0.0))
+    # Pass 2: brief cooldown then one backup sweep across distinct active pools if all spiked.
+    schedule.append((chain[0], sweep_delay))
+    for fallback_model in chain[1:]:
+        if fallback_model != "gemini-3.7-flash":
+            schedule.append((fallback_model, 0.0))
+    return schedule
+
+
 async def run_flash_lite(
     input_blocks: list[dict[str, Any]],
     pacer: AsyncRatePacer | None = None,
@@ -316,6 +365,7 @@ async def run_flash_lite(
     vertex_sa_b64: str | None = None,
     vertex_project: str | None = None,
     vertex_location: str | None = None,
+    thinking_level: Literal["LOW", "MEDIUM", "HIGH"] = "LOW",
 ) -> TrackResult:
     try:
         client, model_id, rates = _build_llm_client(
@@ -327,34 +377,46 @@ async def run_flash_lite(
     except Exception as exc:
         return TrackResult(
             track="llm",
-            model_name=LLM_MODEL,
+            model_name=_format_llm_display_name(LLM_MODEL, thinking_level),
             status="error",
             error_message=str(exc),
         )
 
-    system_prompt = _FAIR_RUBRIC_PROMPT
     parts = _blocks_to_parts(input_blocks)
+    gen_config = types.GenerateContentConfig(
+        system_instruction=_FAIR_RUBRIC_PROMPT,
+        temperature=0.0,
+        response_mime_type="application/json",
+        response_schema=LLMDecisionJSON,
+        thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
+    )
 
+    schedule = _build_llm_attempt_schedule(model_id)
     retries_503 = 0
     retries_429 = 0
     last_error = "Unknown error"
+    last_model = model_id
+    unavailable_models: set[str] = set()
 
-    for attempt in range(len(LLM_RETRY_DELAYS) + 1):
+    for idx, (candidate_model, pre_delay_s) in enumerate(schedule):
+        if candidate_model in unavailable_models:
+            continue
+        # Only sleep before repeating a model after a real transient spike (429/503), not on fallback switch.
+        if pre_delay_s > 0.0 and idx > 0:
+            await asyncio.sleep(pre_delay_s)
         if pacer is not None:
             await pacer.wait_turn()
 
+        last_model = candidate_model
         t0 = time.perf_counter()
         try:
-            res = await client.aio.models.generate_content(
-                model=model_id,
-                contents=parts,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.0,
-                    response_mime_type="application/json",
-                    response_schema=LLMDecisionJSON,
-                    thinking_config=types.ThinkingConfig(thinking_level="LOW"),
+            res = await asyncio.wait_for(
+                client.aio.models.generate_content(
+                    model=candidate_model,
+                    contents=parts,
+                    config=gen_config,
                 ),
+                timeout=LLM_REQUEST_TIMEOUT_S,
             )
             rtt_ms = round((time.perf_counter() - t0) * 1000.0, 2)
             parsed = LLMDecisionJSON.model_validate(json.loads(res.text))
@@ -364,15 +426,16 @@ async def run_flash_lite(
             out_tok = int(getattr(usage, "candidates_token_count", 0) or 0)
             thought_tok = int(getattr(usage, "thoughts_token_count", 0) or 0)
 
+            model_rates = LLM_MODEL_PRICING.get(candidate_model, rates)
             est_cost = round(
-                in_tok * rates["input_per_1m"]
-                + (out_tok + thought_tok) * rates["output_per_1m"],
+                in_tok * model_rates["input_per_1m"]
+                + (out_tok + thought_tok) * model_rates["output_per_1m"],
                 2,
             )
 
             return TrackResult(
                 track="llm",
-                model_name=model_id,
+                model_name=_format_llm_display_name(candidate_model, thinking_level),
                 status="ok",
                 route_target=parsed.route_target,
                 target_mcp_tool=parsed.target_mcp_tool,
@@ -390,23 +453,22 @@ async def run_flash_lite(
                 retries_429=retries_429,
             )
         except Exception as exc:
-            err_str = str(exc)
-            last_error = err_str
-            is_429 = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
-            is_503 = "503" in err_str or "500" in err_str or "Unavailable" in err_str
-
-            if attempt < len(LLM_RETRY_DELAYS) and (is_429 or is_503):
-                if is_429:
-                    retries_429 += 1
-                else:
-                    retries_503 += 1
-                await asyncio.sleep(LLM_RETRY_DELAYS[attempt])
+            last_error = str(exc)
+            is_429, is_503, is_not_found = _classify_llm_error(exc)
+            if is_not_found:
+                unavailable_models.add(candidate_model)
+                continue
+            if is_429:
+                retries_429 += 1
+                continue
+            if is_503:
+                retries_503 += 1
                 continue
             break
 
     return TrackResult(
         track="llm",
-        model_name=model_id,
+        model_name=_format_llm_display_name(last_model, thinking_level),
         status="error",
         error_message=last_error,
         retries_503=retries_503,

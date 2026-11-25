@@ -23,10 +23,22 @@ export interface TrackResult {
   retries_429: number;
 }
 
+export interface CascadeResult {
+  threshold: number;
+  escalated: boolean;
+  trigger_reason: string;
+  final_source: "decision" | "system2" | string;
+  final_route_target?: string | null;
+  final_target_mcp_tool?: string | null;
+  est_blended_cost_per_1m_usd: number;
+  system2?: TrackResult | null;
+}
+
 export interface SingleInspectResponse {
   ml: TrackResult;
   decision: TrackResult;
   llm: TrackResult;
+  cascade?: CascadeResult | null;
 }
 
 export interface SampleInitMeta {

@@ -52,10 +52,22 @@ class TrackResult(BaseModel):
     retries_429: int = 0
 
 
+class CascadeResult(BaseModel):
+    threshold: float = 0.90
+    escalated: bool
+    trigger_reason: str
+    final_source: str  # "decision" | "system2"
+    final_route_target: str | None = None
+    final_target_mcp_tool: str | None = None
+    est_blended_cost_per_1m_usd: float = 0.0
+    system2: TrackResult | None = None
+
+
 class SingleInspectResponse(BaseModel):
     ml: TrackResult
     decision: TrackResult
     llm: TrackResult
+    cascade: CascadeResult | None = None
 
 
 class SampleMeta(BaseModel):

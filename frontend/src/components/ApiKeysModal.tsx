@@ -160,11 +160,11 @@ export function ApiKeysModal({
 
           <div>
             <span className="mb-1.5 block font-display text-xs font-bold uppercase text-ink">
-              2. Vertex AI Service Account (.json · Optional for gemini-3.8-flash)
+              2. Vertex AI Service Account (.json · Recommended for gemini-3.8-flash)
             </span>
             <p className="mb-2 text-[11px] text-inkSecondary">
-              If omitted, the LLM track automatically uses your Gemini API Key via{" "}
-              <code className="font-mono">gemini-3.6-flash</code>.
+              Both Vertex AI and Gemini API Key target <code className="font-mono">gemini-3.8-flash</code>{" "}
+              first, with automatic spike fallback (<code className="font-mono">3.8 -&gt; 3.7 -&gt; 3.6 -&gt; 3.5</code>) on 503/429.
             </p>
 
             <input

@@ -368,6 +368,81 @@ export function ReflexStudio() {
           />
         ))}
       </div>
+
+      {!loading && results?.cascade && (
+        <div className="mt-4 border-2 border-ink bg-white p-4 shadow-brutal">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-ink pb-2.5">
+            <div>
+              <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                Production Architecture · System 1 -&gt; System 2 Gate (conf &gt;={" "}
+                {results.cascade.threshold.toFixed(2)})
+              </span>
+              <h3 className="font-display text-sm font-bold text-ink">
+                Hybrid Decision Cascade (gemini-decision-1 -&gt; {results.llm.model_name} thinking: HIGH)
+              </h3>
+            </div>
+            <span
+              className={`border-2 border-ink px-2.5 py-1 font-mono text-xs font-bold uppercase ${
+                results.cascade.escalated
+                  ? "bg-amber-200 text-ink"
+                  : "bg-emerald-200 text-ink"
+              }`}
+            >
+              {results.cascade.escalated
+                ? "ESCALATED -> SYSTEM 2 (HIGH)"
+                : "FAST PATH EXECUTED (SYSTEM 1)"}
+            </span>
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="border-2 border-ink bg-mutedSurface p-3">
+              <div className="font-mono text-[11px] font-bold uppercase text-slate-600">
+                Final Decision ({results.cascade.final_source})
+              </div>
+              <div className="mt-1 font-mono text-sm font-bold text-ink">
+                {results.cascade.final_route_target || "—"}
+              </div>
+              <div className="mt-0.5 font-mono text-xs text-slate-700">
+                tool: {results.cascade.final_target_mcp_tool || "—"}
+              </div>
+            </div>
+
+            <div className="border-2 border-ink bg-mutedSurface p-3">
+              <div className="font-mono text-[11px] font-bold uppercase text-slate-600">
+                Gate &amp; System 2 Execution
+              </div>
+              <div className="mt-1 text-xs font-medium text-ink">
+                {results.cascade.trigger_reason}
+              </div>
+              {results.cascade.system2 && (
+                <div className="mt-1.5 font-mono text-[11px] text-slate-700">
+                  {results.cascade.system2.model_name} ·{" "}
+                  {results.cascade.system2.rtt_ms.toFixed(0)} ms ·{" "}
+                  {results.cascade.system2.thought_tokens} thought /{" "}
+                  {results.cascade.system2.output_tokens} out tok
+                  {results.cascade.system2.confidence != null &&
+                    ` · conf ${results.cascade.system2.confidence.toFixed(2)}`}
+                </div>
+              )}
+            </div>
+
+            <div className="border-2 border-ink bg-mutedSurface p-3">
+              <div className="font-mono text-[11px] font-bold uppercase text-slate-600">
+                Blended Cascade Cost
+              </div>
+              <div className="mt-1 font-mono text-base font-bold text-ink">
+                ${results.cascade.est_blended_cost_per_1m_usd.toFixed(2)} / 1M req
+              </div>
+              <div className="mt-0.5 font-mono text-[11px] text-slate-700">
+                S1 ${results.decision.est_cost_per_1m_usd.toFixed(2)}
+                {results.cascade.system2
+                  ? ` + S2 $${results.cascade.system2.est_cost_per_1m_usd.toFixed(2)}`
+                  : " + S2 $0.00 (bypassed)"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
